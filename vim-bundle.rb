@@ -5,6 +5,7 @@ require 'net/https'
 require 'uri'
 require 'open-uri'
 require 'zlib'
+require 'fileutils'
 
 http_proxy_env = "http_proxy"
 
@@ -122,11 +123,14 @@ elsif ARGV.size > 1
     exit
   end
 
-  puts "#{download_url}"
-  res = fetch(download_url, proxy_uri)
-  puts "#{res}"
-  if res.code != 200
-    puts "Download failed with status #{res.code} for URL:"
+  #puts "#{download_url}"
+  #res = fetch(download_url, proxy_uri)
+  #puts "#{res}"
+  
+  res_code = `curl -sL -w "%{http_code} %{url_effective}\\n" "#{download_url}" -o /dev/null | awk '{ print $1 }'`.strip.to_i
+  #if res.code != 200
+  if res_code != 200
+    puts "Download failed with status #{res_code} for URL:"
     puts download_url
     exit()
   end
@@ -151,20 +155,15 @@ elsif ARGV.size > 1
     puts "could not create #{plugin_path}"
   end
 
-  
   File.delete(plugin_tar)
-#  `mkdir #{plugin_path} && 
-#  ##tar -C #{plugin_path} -xzvf #{plugin_tar}
-#  #--strip-components=1 &&
-#  #rm #{plugin_tar}`
-
   if command == "update"
-    puts ">> Removing old plugin"
-    File.new(old_plugin_path).delete("*")
-    Dir.delete old_plugin_path
-    puts ">> Moving new plugin"
-    File.rename plugin_path old_plugin_path
-    puts "\033[32m#{plugin_name} is now updated!"
+    if File.exists? old_plugin_path
+      puts ">> Removing old plugin"
+      FileUtils.rm_rf old_plugin_path
+      puts ">> Moving new plugin" 
+      File.rename plugin_path old_plugin_path 
+      puts "\033[32m#{plugin_name} is now updated!"
+    end
   else
     puts "\033[32m#{plugin_name} is now installed!"
   end
