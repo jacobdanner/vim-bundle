@@ -63,7 +63,9 @@ def fetch(uri_str, proxy_uri = nil, limit = 10)
     #response= Net::HTTP.get_response(URI(uri_str), {:use_ssl => true})
   end
 
-  response = Net::HTTP::Proxy(p_uri.host, p_uri.port, p_user, p_pass).get_response(dl_uri, :use_ssl => dl_uri.scheme == 'https')
+  response = Net::HTTP::Proxy(p_uri.host,
+                              p_uri.port, p_user, p_pass).get_response(dl_uri, 
+                                                  :use_ssl => dl_uri.scheme == 'https')
 
 
   #http_req.use_ssl = true
@@ -126,6 +128,32 @@ elsif ARGV.size > 1
   #puts "#{download_url}"
   #res = fetch(download_url, proxy_uri)
   #puts "#{res}"
+def simple_fetch(download_url)
+  puts "Download URL #{download_url}"
+  response = nil
+#  Net::HTTP.start(download_url) {|http|
+#    response = http.head(download_url) #head
+#  }
+  dl_uri = URI.parse(download_url)
+  response = Net::HTTP.get_response(download_url, #dl_uri, 
+                                    :use_ssl => true)#dl_uri.scheme == "https")
+  puts response
+  case response
+    when Net::HTTPSuccess then
+      response
+    when Net::HTTPRedirection then
+      location = response['location']
+      warn "redirected to #{location}"
+      simple_fetch(location, limit - 1)
+    else
+    response.error!
+  end 
+  
+end
+
+  # TODO: make this support ENV["http_proxy] 
+  # TODO: make this support redirects
+  #res_code = simple_fetch(download_url).code
   
   res_code = `curl -sL -w "%{http_code} %{url_effective}\\n" "#{download_url}" -o /dev/null | awk '{ print $1 }'`.strip.to_i
   #if res.code != 200
