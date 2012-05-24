@@ -6,15 +6,10 @@ require 'uri'
 require 'open-uri'
 require 'zlib'
 
-
 http_proxy_env = "http_proxy"
 
-proxy_uri=nil
-proxy_user=nil
-proxy_pass=nil
-proxy_host=nil
-proxy_port=nil
-
+# try a simple check, unfortunately this does not always work
+# for example RailsInstaller platform is mingw32
 if RUBY_PLATFORM.downcase.include?("mswin")
   # This is the default on a gvim install on windows
   bundle_path = File.expand_path "~/vimfiles/bundle"
@@ -32,9 +27,6 @@ end
 # otherwise use windows registry
 if(ENV.has_key? http_proxy_env)
   proxy_uri = ENV[http_proxy_env]
-#  proxy_user, proxy_pass = uri.userinfo.split(/:/) if proxy_uri.userinfo
-#  proxy_host = proxy_uri.host if proxy_uri.host
-#  proxy_port = proxy_uri.port if proxy_uri.port
 end
 
 def usage
@@ -52,21 +44,30 @@ def fetch(uri_str, proxy_uri = nil, limit = 10)
   # You should choose a better exception.
   raise ArgumentError, 'too many HTTP redirects' if limit == 0
 
-  puts "proxy_uri -> #{proxy_uri}"
+  dl_uri = URI.parse(uri_str)
+  #dl_http = Net::HTTP.new()
+  p_user = nil
+  p_pass = nil
+  p_uri = nil
+   
+  puts "proxy_uri -> #{proxy_uri}"  if proxy_uri
   # use proxy if it exists
   if(proxy_uri)
-
     p_uri = URI.parse(proxy_uri)    
-    puts "P_URI -> #{p_uri}"
-    p_user = nil
-    p_pass = nil
     p_user, p_pass = p_uri.userinfo.split(/:/) if p_uri.userinfo
-    response = Net::HTTP::Proxy(p_uri.host, p_uri.port, p_user, p_pass).get_response(URI(uri_str))
-  else
-    response= Net::HTTP.get_response(URI(uri_str))
+    #http_req = Net::HTTP::Proxy(p_uri.host, p_uri.port, p_user, p_pass).new(dl_uri)
+    #response = http_req.get_response(URI(uri_str), {:use_ssl => true})
+#  else
+ #   http_req = Net::HTTP.new(dl_uri)
+    #response= Net::HTTP.get_response(URI(uri_str), {:use_ssl => true})
   end
-  #http_access.use_ssl true
-  #response = http_access.get_response(URI(uri_str))
+
+  response = Net::HTTP::Proxy(p_uri.host, p_uri.port, p_user, p_pass).get_response(dl_uri, :use_ssl => dl_uri.scheme == 'https')
+
+
+  #http_req.use_ssl = true
+  #http_req.verify_mode = OpenSSL::SSL::VERIFY_NONE
+  #response = http_req.get_response(dl_uri.request_uri, :use_ssl => uri.scheme == 'https')
 
   case response
   when Net::HTTPSuccess then
@@ -76,7 +77,7 @@ def fetch(uri_str, proxy_uri = nil, limit = 10)
     warn "redirected to #{location}"
     fetch(location, proxy_uri, limit - 1)
   else
-    response
+    response.error!
   end
 end
 
