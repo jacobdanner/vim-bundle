@@ -12,7 +12,6 @@ require 'fileutils'
 
 bundle_path = File.expand_path "~/.vim/bundle"
 
-
 # try a simple check, unfortunately this does not always work
 # for example RailsInstaller platform is mingw32
 if RUBY_PLATFORM.downcase.include?("mswin")
@@ -76,13 +75,11 @@ elsif ARGV.size > 1
     exit
   end
 
-  
   # create dir to download to if it does not exist  
   FileUtils.mkdir_p(File.dirname(File.expand_path(plugin_tar)))
   # use open-uri to download tar, this API
   # knows how to work with https, redirection 
   # and proxy information 
-  
   puts ">> Downloading from #{download_url}"
   open(download_url) do |f|
    File.open(plugin_tar,"wb") do |file|
