@@ -4,84 +4,38 @@ require 'net/http'
 require 'net/https'
 require 'uri'
 require 'open-uri'
+require 'openssl'
+# simple workaround for SSL error 
+OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 require 'zlib'
+require 'fileutils'
 
-http_proxy_env = "http_proxy"
+bundle_path = File.expand_path "~/.vim/bundle"
+
 
 # try a simple check, unfortunately this does not always work
 # for example RailsInstaller platform is mingw32
 if RUBY_PLATFORM.downcase.include?("mswin")
   # This is the default on a gvim install on windows
   bundle_path = File.expand_path "~/vimfiles/bundle"
-  
   require 'win32/registry'
   Win32::Registry::HKEY_CURRENT_USER.open(
     "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\") do |reg|
       proxy_uri = reg.read("ProxyServer")
-    end
-else
-  bundle_path = File.expand_path "~/.vim/bundle"
-end
-
-# if the env var for proxy has been set use that, 
-# otherwise use windows registry
-if(ENV.has_key? http_proxy_env)
-  proxy_uri = ENV[http_proxy_env]
+  end
 end
 
 def usage
   puts "Usage: vim-bundle <command>"
   puts ""
-  puts "  \033[36mlist \033[0m- list all bundles currently installed"
-  puts "  \033[36minstall <github user>/<repository name> "
-  puts "      \033[0m installs plugin from github. If no user is specified vim-scripts is used"
-  puts "  \033[36mupdate <github user>/<repository name> "
-  puts "      \033[0m updates plugin. If no user is specified vim-scripts is used"
+  puts "  list - list all bundles currently installed"
+  puts "  install <github user>/<repository name> "
+  puts "      installs plugin from github. If no user is specified vim-scripts is used"
+  puts "  update <github user>/<repository name> "
+  puts "      updates plugin. If no user is specified vim-scripts is used"
 end
 
-# from the ruby-doc std-lib example
-def fetch(uri_str, proxy_uri = nil, limit = 10)
-  # You should choose a better exception.
-  raise ArgumentError, 'too many HTTP redirects' if limit == 0
-
-  dl_uri = URI.parse(uri_str)
-  #dl_http = Net::HTTP.new()
-  p_user = nil
-  p_pass = nil
-  p_uri = nil
-   
-  puts "proxy_uri -> #{proxy_uri}"  if proxy_uri
-  # use proxy if it exists
-  if(proxy_uri)
-    p_uri = URI.parse(proxy_uri)    
-    p_user, p_pass = p_uri.userinfo.split(/:/) if p_uri.userinfo
-    #http_req = Net::HTTP::Proxy(p_uri.host, p_uri.port, p_user, p_pass).new(dl_uri)
-    #response = http_req.get_response(URI(uri_str), {:use_ssl => true})
-#  else
- #   http_req = Net::HTTP.new(dl_uri)
-    #response= Net::HTTP.get_response(URI(uri_str), {:use_ssl => true})
-  end
-
-  response = Net::HTTP::Proxy(p_uri.host, p_uri.port, p_user, p_pass).get_response(dl_uri, :use_ssl => dl_uri.scheme == 'https')
-
-
-  #http_req.use_ssl = true
-  #http_req.verify_mode = OpenSSL::SSL::VERIFY_NONE
-  #response = http_req.get_response(dl_uri.request_uri, :use_ssl => uri.scheme == 'https')
-
-  case response
-  when Net::HTTPSuccess then
-    response
-  when Net::HTTPRedirection then
-    location = response['location']
-    warn "redirected to #{location}"
-    fetch(location, proxy_uri, limit - 1)
-  else
-    response.error!
-  end
-end
-
-
+# TODO: convert this to use OptionParser
 if ARGV.first == "list"
   Dir.entries("#{bundle_path}").sort.each  {|dir| puts "#{dir}"}
 elsif ARGV.first == "--help" || ARGV.first == "-h" || ARGV.first == "help"
@@ -122,9 +76,13 @@ elsif ARGV.size > 1
     exit
   end
 
+  
+  # create dir to download to if it does not exist  
+  FileUtils.mkdir_p(File.dirname(File.expand_path(plugin_tar)))
   # use open-uri to download tar, this API
   # knows how to work with https, redirection 
   # and proxy information 
+  
   puts ">> Downloading from #{download_url}"
   open(download_url) do |f|
    File.open(plugin_tar,"wb") do |file|
@@ -134,7 +92,7 @@ elsif ARGV.size > 1
 
   unless File.exists?(File.expand_path(plugin_tar))
     puts plugin_tar
-    puts "\033[31mFailed to download tar"
+    puts " Failed to download tar"
     exit
   end
 
@@ -143,22 +101,18 @@ elsif ARGV.size > 1
     puts "could not create #{plugin_path}"
   end
 
-  
+  puts ">> Deleting plugin tarball #{plugin_tar}"
   File.delete(plugin_tar)
-#  `mkdir #{plugin_path} && 
-#  ##tar -C #{plugin_path} -xzvf #{plugin_tar}
-#  #--strip-components=1 &&
-#  #rm #{plugin_tar}`
 
   if command == "update"
     puts ">> Removing old plugin"
-    File.new(old_plugin_path).delete("*")
-    Dir.delete old_plugin_path
+    FileUtils.rmdir old_plugin_path, :verbose=> true 
     puts ">> Moving new plugin"
-    File.rename plugin_path old_plugin_path
-    puts "\033[32m#{plugin_name} is now updated!"
+    #File.rename plugin_path old_plugin_path
+    FileUtils.mv plugin_path old_plugin_path
+    puts " #{plugin_name} is now updated!"
   else
-    puts "\033[32m#{plugin_name} is now installed!"
+    puts " #{plugin_name} is now installed!"
   end
 else
   usage
