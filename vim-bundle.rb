@@ -17,11 +17,11 @@ bundle_path = File.expand_path "~/.vim/bundle"
 if RUBY_PLATFORM.downcase.include?("mswin")
   # This is the default on a gvim install on windows
   bundle_path = File.expand_path "~/vimfiles/bundle"
-  require 'win32/registry'
-  Win32::Registry::HKEY_CURRENT_USER.open(
-    "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\") do |reg|
-      proxy_uri = reg.read("ProxyServer")
-  end
+  #require 'win32/registry'
+  #Win32::Registry::HKEY_CURRENT_USER.open(
+  #  "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\") do |reg|
+  #    proxy_uri = reg.read("ProxyServer")
+  #end
 end
 
 def usage
