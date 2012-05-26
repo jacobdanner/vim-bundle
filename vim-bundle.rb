@@ -122,23 +122,15 @@ elsif ARGV.size > 1
     exit
   end
 
-  puts "#{download_url}"
-  res = fetch(download_url, proxy_uri)
-  puts "#{res}"
-  if res.code != 200
-    puts "Download failed with status #{res.code} for URL:"
-    puts download_url
-    exit()
-  end
-
+  # use open-uri to download tar, this API
+  # knows how to work with https, redirection 
+  # and proxy information 
   puts ">> Downloading from #{download_url}"
   open(download_url) do |f|
    File.open(plugin_tar,"wb") do |file|
      file.puts f.read
    end
   end
-
-#  `wget -q -O #{plugin_tar} #{download_url}`
 
   unless File.exists?(File.expand_path(plugin_tar))
     puts plugin_tar
